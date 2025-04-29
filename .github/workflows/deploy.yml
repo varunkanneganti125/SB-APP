@@ -1,32 +1,48 @@
-name: 🚀 Auto Deploy to EC2
-
+name: Deploy PHP Application to EC2
+ 
 on:
   push:
     branches:
-      - master  # Trigger deployment on push to master branch
-
+      - master   # Trigger the workflow on push to the 'main' branch
+ 
 jobs:
   deploy:
-    runs-on: Amazon-Linux  # GitHub-hosted runner
-
+    runs-on: ubuntu-latest
+ 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
-    - name: Deploy to EC2
-      run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          cd SB-APP || git clone https://github.com/varunkanneganti125/SB-APP.git SB-APP
-          cd SB-APP
-          git pull origin master
-          pkill -f 'java -jar' || true
-          ./mvn clean package -DskipTests
-          nohup java -jar target/*.jar > app.log 2>&1 &
-        EOF
+      - name: Checkout Code
+        uses: actions/checkout@v3
+ 
+      - name: Set up SSH for EC2
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_KEY }}
+ 
+      - name: Deploy to EC2 Instance
+        run: |
+          echo "Connecting to EC2 instance..."
+          ssh -o StrictHostKeyChecking=no  ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+ 
+            sudo lsof -t -i :8080 | xargs sudo kill -9 || true
+            sudo rm -rf SB-APP  # Remove the existing 'deploy' directoryu
+ 
+            sudo git clone https://varunkanneganti125:${{ secrets.MY_GIT_PAT }}@github.com/varunkanneganti125/SB-APP.git
+ 
+ 
+            # Navigate into the deploy directoryy
+            cd SB-APP || exit 1
+ 
+            sudo mvn clean install
+ 
+            cd target
+ 
+            JAR_FILE=$(ls *.jar | head -n 1)
+            if [ -z "$JAR_FILE" ]; then
+              echo "No JAR file found in the target directory. Exiting."
+              exit 1
+            fi
+            # Run the JAR file in the background using nohup
+            echo "Running the JAR file: $JAR_FILE"
+            nohup java -jar "$JAR_FILE"> /dev/null 2>&1 &
+ 
+            sudo systemctl restart httpd
