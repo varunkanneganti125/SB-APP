@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: Amazon-Linux  # GitHub-hosted runner
+    runs-on: ubuntu-latest  # GitHub-hosted runner
 
     steps:
     - name: Checkout code
