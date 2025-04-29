@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MyController {
     @GetMapping("/")
     public String hello() {
-        return "Hello This My First Automation of SpringBoot Application in github";
+        return "Automation of SpringBoot Application in Github";
     }
 }
