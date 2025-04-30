@@ -1,48 +1,48 @@
-name: Deploy PHP Application to EC2
- 
+name: "Deploying the Spring Boot app on EC2"
+
 on:
   push:
     branches:
-      - master   # Trigger the workflow on push to the 'main' branch
- 
+      - master  # Change to 'main' if that's your default branch
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
- 
+
     steps:
-      - name: Checkout Code
+
+      - name: Checkout code
         uses: actions/checkout@v3
- 
-      - name: Set up SSH for EC2
-        uses: webfactory/ssh-agent@v0.5.3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0  # v0.7.0 is the latest stable
+
         with:
           ssh-private-key: ${{ secrets.EC2_KEY }}
- 
-      - name: Deploy to EC2 Instance
+
+      - name: Deploy the project
         run: |
-          echo "Connecting to EC2 instance..."
-          ssh -o StrictHostKeyChecking=no  ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
- 
-            sudo lsof -t -i :8080 | xargs sudo kill -9 || true
-            sudo rm -rf SB-APP  # Remove the existing 'deploy' directoryu
- 
-            sudo git clone https://varunkanneganti125:${{ secrets.MY_GIT_PAT }}@github.com/varunkanneganti125/SB-APP.git
- 
- 
-            # Navigate into the deploy directoryy
-            cd SB-APP || exit 1
- 
-            sudo mvn clean install
- 
-            cd target
- 
-            JAR_FILE=$(ls *.jar | head -n 1)
-            if [ -z "$JAR_FILE" ]; then
-              echo "No JAR file found in the target directory. Exiting."
-              exit 1
-            fi
-            # Run the JAR file in the background using nohup
-            echo "Running the JAR file: $JAR_FILE"
-            nohup java -jar "$JAR_FILE"> /dev/null 2>&1 &
- 
-            sudo systemctl restart httpd
+          echo "Connecting to EC2 server via SSH"
+
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+
+            echo "Changing the directory where the application is on EC2"
+            cd /home/ec2-user/SB-APP  # Replace with your actual EC2 folder
+
+            echo "Pulling the latest code from origin master"
+            git pull origin master
+
+            echo "Making mvnw executable"
+            chmod +x mvnw
+
+            echo "Building the application using Maven"
+            ./mvnw clean package
+
+            echo "Killing any running Java application"
+            pkill -f 'java -jar' || true
+
+            echo "Starting the application and running in the background"
+            nohup java -jar target/*.jar > output.log 2>&1 &
+
+            echo "Deployment completed"
+            EOF
