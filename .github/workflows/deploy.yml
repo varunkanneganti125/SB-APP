@@ -1,43 +1,48 @@
-name: Deploy SB App to EC2
+name: "Deploying the Spring Boot app on EC2"
 
 on:
   push:
     branches:
-      - master  # Ensure your branch is really called master
+      - master  # Change to 'main' if that's your default branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0  # v0.7.0 is the latest stable
+
         with:
           ssh-private-key: ${{ secrets.EC2_KEY }}
 
-      - name: Deploy to EC2
+      - name: Deploy the project
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            sudo pkill -f 'java -jar' || true
-            sudo rm -rf SB-APP
+          echo "Connecting to EC2 server via SSH"
 
-            # Cloning the repo using PAT
-            git clone https://varunkanneganti125:${{ secrets.MY_GIT_PAT }}@github.com/varunkanneganti125/SB-APP.git
-            cd SB-APP || exit 1
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
 
-            ./mvnw clean package -DskipTests
+            echo "Changing the directory where the application is on EC2"
+            cd /home/ec2-user/SB-APP  # Replace with your actual EC2 folder
 
-            JAR_FILE=$(ls target/*.jar | head -n 1)
-            if [ -z "$JAR_FILE" ]; then
-              echo "No JAR file found"
-              exit 1
-            fi
+            echo "Pulling the latest code from origin master"
+            git pull origin master
 
-            nohup java -jar "$JAR_FILE" > app.log 2>&1 &
-            echo "✅ Spring Boot app deployed successfully"
+            echo "Making mvnw executable"
+            chmod +x mvnw
 
-            sudo systemctl restart httpd || true  # Only if using Apache
-          EOF
+            echo "Building the application using Maven"
+            ./mvnw clean package
+
+            echo "Killing any running Java application"
+            pkill -f 'java -jar' || true
+
+            echo "Starting the application and running in the background"
+            nohup java -jar target/*.jar > output.log 2>&1 &
+
+            echo "Deployment completed"
+            EOF
