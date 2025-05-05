@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MyController {
     @GetMapping("/")
     public String hello() {
-        return "Hello Ram!!!!";
+        return "Hello varun, Jenkins Automation is sucessfully running!!!!";
     }
 }
