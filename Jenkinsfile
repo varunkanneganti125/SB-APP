@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        EC2_USER = 'ec2-user'
+        EC2_HOST = '52.91.201.217'
+    }
+
     stages {
         stage('Checkout Code') {
             steps {
@@ -14,7 +19,7 @@ pipeline {
                     sh '''
                     echo "Connecting to EC2 and deploying the Spring Boot app"
 
-                    ssh -o StrictHostKeyChecking=no ec2-user@52.91.201.217 << EOF
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
 
                         echo "Navigating to project directory"
                         cd /home/ec2-user/SB-APP || {
@@ -39,7 +44,7 @@ pipeline {
                         echo "Starting new application"
                         nohup java -jar target/*.jar > output.log 2>&1 &
 
-                        echo "✅ Deployment completed"
+                        echo "Deployment completed"
 
                     EOF
                     '''
@@ -47,4 +52,4 @@ pipeline {
             }
         }
     }
-} 
+}
