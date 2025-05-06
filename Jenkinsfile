@@ -4,50 +4,56 @@ pipeline {
     environment {
         EC2_USER = 'ec2-user'
         EC2_HOST = '52.91.201.217'
+        PROJECT_DIR = '/home/ec2-user/SB-APP'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/varunkanneganti125/SB-APP.git', branch: 'master'
+                git branch: 'master', url: 'https://github.com/varunkanneganti125/SB-APP.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'chmod +x mvnw'
+                sh './mvnw clean package -DskipTests'
             }
         }
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh '''
-                    echo "Connecting to EC2 and deploying the Spring Boot app"
+                sshagent(credentials: ['ec2-ssh-key']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+                        echo "Connecting to EC2 instance..."
 
-                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+                        # Go to project directory or clone it
+                        if [ -d "${PROJECT_DIR}" ]; then
+                            cd ${PROJECT_DIR}
+                            git reset --hard
+                            git pull origin master
+                        else
+                            cd /home/${EC2_USER}
+                            git clone https://github.com/varunkanneganti125/SB-APP.git
+                            cd SB-APP
+                        fi
 
-                        echo "Navigating to project directory"
-                        cd /home/ec2-user/SB-APP || {
-                          echo "Directory not found. Cloning the project..."
-                          git clone https://github.com/varunkanneganti125/SB-APP.git SB-APP
-                          cd SB-APP
-                        }
-
-                        echo "Pulling latest code"
-                        git reset --hard
-                        git pull origin master
-
-                        echo "Giving executable permissions to mvnw"
+                        # Ensure mvnw is executable
                         chmod +x mvnw
 
-                        echo "Building project with Maven"
+                        echo "Building project on EC2..."
                         ./mvnw clean package -DskipTests
 
-                        echo "Stopping old application if running"
+                        echo "Stopping old Spring Boot app if running..."
                         pkill -f 'java -jar' || true
 
-                        echo "Starting new application"
-                        nohup java -jar target/*.jar > output.log 2>&1 &
+                        echo "Starting new app in background..."
+                        nohup java -jar target/*.jar > app.log 2>&1 &
 
-                        echo "Deployment completed"
-
-                    EOF
-                    '''
+                        echo "Deployment successful!"
+                        EOF
+                    """
                 }
             }
         }
