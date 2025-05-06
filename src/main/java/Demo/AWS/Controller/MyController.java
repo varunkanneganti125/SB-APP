@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MyController {
     @GetMapping("/")
     public String hello() {
-        return "Hello varun, Jenkins Automation using webhook trigger is sucessfully running!!!!";
+        return "Hello varun, Jenkins Automation using webhook trigger is sucessfully running!!!";
     }
 }
